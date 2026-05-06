@@ -17,14 +17,21 @@ return [
 
     'paths' => ['api/*'],
 
-    'allowed_methods' => ['*'],
+    'allowed_methods' => ['GET,POST,PUT,PATCH,DELETE,OPTIONS'],
 
-    'allowed_origins' => array_values(array_filter(array_map(
+    'allowed_origins' => array_values(array_unique(array_filter(array_map(
         'trim',
-        explode(',', (string) env('CORS_ALLOWED_ORIGINS', env('FRONTEND_URL', 'http://localhost:3000')))
-    ))),
+        array_merge(
+            explode(',', (string) env('CORS_ALLOWED_ORIGINS', env('FRONTEND_URL', 'http://localhost:3000'))),
+            ['http://localhost:3000', 'http://127.0.0.1:3000']
+        )
+    )))),
 
-    'allowed_origins_patterns' => [],
+    // Autorise aussi les ports de dev courants (CRA, Vite, etc.)
+    'allowed_origins_patterns' => [
+        '#^http://localhost(?::\d+)?$#',
+        '#^http://127\.0\.0\.1(?::\d+)?$#',
+    ],
 
     'allowed_headers' => ['*'],
 
