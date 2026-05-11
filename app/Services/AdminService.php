@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Category;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\User;
 use App\Models\Vendeur;
@@ -111,6 +112,12 @@ class AdminService
         $perPage = min(max((int) ($filters['per_page'] ?? 10), 1), 100);
 
         return Vendeur::with('user')
+            ->withCount('products')
+            ->addSelect([
+                'orders_count' => OrderItem::query()
+                    ->selectRaw('COUNT(DISTINCT order_id)')
+                    ->whereColumn('vendeur_id', 'vendeurs.id'),
+            ])
             ->orderBy('total_sales', 'desc')
             ->paginate($perPage)
             ->through(function ($vendeur) {
@@ -119,6 +126,8 @@ class AdminService
                     'shop_name' => $vendeur->shop_name,
                     'user_name' => $vendeur->user->name,
                     'total_sales' => $vendeur->total_sales,
+                    'orders_count' => (int) ($vendeur->orders_count ?? 0),
+                    'products_count' => (int) ($vendeur->products_count ?? 0),
                     'rating' => $vendeur->rating,
                     'verified' => $vendeur->verified,
                 ];
@@ -134,7 +143,12 @@ class AdminService
     {
         $perPage = min(max((int) ($filters['per_page'] ?? 10), 1), 100);
 
-        return Order::with(['user', 'payment'])
+        return Order::with([
+            'user:id,name,email,country',
+            'payment',
+            'items.product:id,name,images,vendeur_id',
+            'items.vendeur.user:id,name',
+        ])
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);
     }
@@ -372,11 +386,57 @@ class AdminService
      */
     public function getAllUsers(array $filters = [])
     {
-        $query = User::with('vendeur');
+        $query = User::with([
+            'vendeur' => function ($query) {
+                $query->withCount('products');
+            },
+        ]);
 
         // Filtre par rôle
         if (isset($filters['role'])) {
             $query->where('role', $filters['role']);
+        }
+
+        if (($filters['role'] ?? null) === 'client') {
+            $completedStatuses = ['processing', 'shipped', 'delivered'];
+
+            $query
+                ->select('users.*')
+                ->selectSub(function ($subquery) {
+                    $subquery
+                        ->from('orders')
+                        ->selectRaw('COUNT(*)')
+                        ->whereColumn('orders.user_id', 'users.id');
+                }, 'orders_count')
+                ->selectSub(function ($subquery) use ($completedStatuses) {
+                    $subquery
+                        ->from('orders')
+                        ->selectRaw('COALESCE(SUM(total), 0)')
+                        ->whereColumn('orders.user_id', 'users.id')
+                        ->whereIn('orders.status', $completedStatuses);
+                }, 'total_spent')
+                ->selectSub(function ($subquery) use ($completedStatuses) {
+                    $subquery
+                        ->from('orders')
+                        ->selectRaw('COALESCE(AVG(total), 0)')
+                        ->whereColumn('orders.user_id', 'users.id')
+                        ->whereIn('orders.status', $completedStatuses);
+                }, 'average_order_value')
+                ->selectSub(function ($subquery) {
+                    $subquery
+                        ->from('orders')
+                        ->selectRaw('MAX(created_at)')
+                        ->whereColumn('orders.user_id', 'users.id');
+                }, 'last_order_at')
+                ->selectSub(function ($subquery) {
+                    $subquery
+                        ->from('payments')
+                        ->join('orders', 'orders.id', '=', 'payments.order_id')
+                        ->select('payments.method')
+                        ->whereColumn('orders.user_id', 'users.id')
+                        ->orderByDesc('orders.created_at')
+                        ->limit(1);
+                }, 'last_payment_method');
         }
 
         // Filtre par statut

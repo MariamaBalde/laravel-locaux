@@ -22,6 +22,14 @@ class OrderResource extends JsonResource
             'notes' => $this->notes,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
+            'user' => $this->whenLoaded('user', function () {
+                return [
+                    'id' => $this->user?->id,
+                    'name' => $this->user?->name,
+                    'email' => $this->user?->email,
+                    'country' => $this->user?->country,
+                ];
+            }),
             'items' => OrderItemResource::collection($this->whenLoaded('items')),
             'payment' => new PaymentResource($this->whenLoaded('payment')),
         ];

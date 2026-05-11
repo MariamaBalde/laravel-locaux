@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Category;
+use App\Models\Order;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Passport\Passport;
@@ -87,5 +88,62 @@ class ApiContractTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('meta.per_page', 1)
             ->assertJsonCount(1, 'data');
+    }
+
+    public function test_admin_users_endpoint_returns_client_metrics_from_full_history(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'country' => 'SN',
+            'statut' => 'actif',
+        ]);
+
+        $client = User::factory()->create([
+            'role' => 'client',
+            'country' => 'FR',
+            'statut' => 'actif',
+            'created_at' => now()->subDays(120),
+        ]);
+
+        $olderOrder = Order::factory()->create([
+            'user_id' => $client->id,
+            'status' => 'delivered',
+            'total' => 25000,
+            'created_at' => now()->subDays(40),
+        ]);
+        $olderOrder->payment()->create([
+            'amount' => 25000,
+            'method' => 'wave',
+            'status' => 'completed',
+            'transaction_id' => 'txn-old',
+        ]);
+
+        $latestOrder = Order::factory()->create([
+            'user_id' => $client->id,
+            'status' => 'delivered',
+            'total' => 45000,
+            'created_at' => now()->subDays(5),
+        ]);
+        $latestOrder->payment()->create([
+            'amount' => 45000,
+            'method' => 'orange_money',
+            'status' => 'completed',
+            'transaction_id' => 'txn-latest',
+        ]);
+
+        Passport::actingAs($admin);
+
+        $response = $this->getJson('/api/admin/users?role=client&per_page=10');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.0.id', $client->id)
+            ->assertJsonPath('data.0.client_metrics.orders_count', 2)
+            ->assertJsonPath('data.0.client_metrics.total_spent', 70000)
+            ->assertJsonPath('data.0.client_metrics.average_order_value', 35000)
+            ->assertJsonPath('data.0.client_metrics.last_payment_method', 'orange_money')
+            ->assertJsonPath('data.0.client_metrics.segment', 'Nouveau')
+            ->assertJsonPath('data.0.client_metrics.source', 'full_history');
     }
 }

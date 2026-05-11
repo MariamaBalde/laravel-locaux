@@ -54,6 +54,20 @@ class AuthTest extends TestCase
 
         $response
             ->assertStatus(401)
-            ->assertJsonPath('success', false);
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('errors.email.0', 'Identifiants invalides.');
+    }
+
+    public function test_login_does_not_reveal_whether_email_exists(): void
+    {
+        $response = $this->postJson('/api/auth/login', [
+            'email' => 'missing@test.local',
+            'password' => 'WrongPassword!',
+        ]);
+
+        $response
+            ->assertStatus(401)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('errors.email.0', 'Identifiants invalides.');
     }
 }

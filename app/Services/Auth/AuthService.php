@@ -80,20 +80,14 @@ class AuthService implements AuthServiceInterface
     {
         $user = User::where('email', $credentials['email'])->first();
 
-        if (! $user) {
+        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
             throw ValidationException::withMessages([
-                'email' => ['Cet email n\'existe pas dans notre système.'],
+                'email' => ['Identifiants invalides.'],
             ]);
         }
 
-        if (! Auth::attempt($credentials)) {
-            throw ValidationException::withMessages([
-                'password' => ['Le mot de passe est incorrect.'],
-            ]);
-        }
-
-        $user = Auth::user();
         $this->validationService->validateUserLoginStatus($user);
+        Auth::login($user);
 
         $tokenResult = $user->createToken('Personal Access Token');
 

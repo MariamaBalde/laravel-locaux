@@ -53,4 +53,6 @@ return [
         'secret' => env('PASSPORT_PASSWORD_GRANT_CLIENT_SECRET'),
     ],
 
+    'token_url' => env('PASSPORT_TOKEN_URL'),
+
 ];

@@ -23,6 +23,13 @@ class OrderItemResource extends JsonResource
                     'images' => $this->product?->images ?? [],
                 ];
             }),
+            'vendeur' => $this->whenLoaded('vendeur', function () {
+                return [
+                    'id' => $this->vendeur?->id,
+                    'shop_name' => $this->vendeur?->shop_name,
+                    'user_name' => $this->vendeur?->user?->name,
+                ];
+            }),
         ];
     }
 }

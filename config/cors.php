@@ -17,7 +17,7 @@ return [
 
     'paths' => ['api/*'],
 
-    'allowed_methods' => ['GET,POST,PUT,PATCH,DELETE,OPTIONS'],
+    'allowed_methods' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 
     'allowed_origins' => array_values(array_unique(array_filter(array_map(
         'trim',
@@ -39,6 +39,9 @@ return [
 
     'max_age' => 0,
 
-    'supports_credentials' => (bool) env('CORS_SUPPORTS_CREDENTIALS', false),
+    'supports_credentials' => filter_var(
+        env('CORS_SUPPORTS_CREDENTIALS', false),
+        FILTER_VALIDATE_BOOL
+    ),
 
 ];

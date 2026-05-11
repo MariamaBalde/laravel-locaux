@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateAdminProductStatusRequest;
 use App\Http\Resources\AdminUserResource;
 use App\Http\Resources\DataCollection;
 use App\Http\Resources\DataResource;
+use App\Http\Resources\OrderResource;
 use App\Http\Resources\ProductResource;
 use App\Services\AdminService;
 use App\Services\Product\ProductService;
@@ -145,7 +146,7 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => new DataCollection($data->getCollection()),
+                'data' => OrderResource::collection($data->getCollection()),
                 'meta' => [
                     'current_page' => $data->currentPage(),
                     'per_page' => $data->perPage(),
