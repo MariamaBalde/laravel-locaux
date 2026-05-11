@@ -36,6 +36,42 @@ Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10
 Route::post('/password/forgot', [PasswordController::class, 'forgot'])->middleware('throttle:6,1');
 Route::post('/password/reset', [PasswordController::class, 'reset'])->middleware('throttle:6,1');
 
+// Route de diagnostic pour tester la base de données
+Route::get('/diagnostic', function () {
+    try {
+        // Test de connexion à la base de données
+        \DB::connection()->getPdo();
+
+        // Compter les produits
+        $productCount = \App\Models\Product::count();
+
+        // Compter les utilisateurs
+        $userCount = \App\Models\User::count();
+
+        // Vérifier les migrations
+        $migrations = \DB::table('migrations')->count();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Base de données connectée',
+            'data' => [
+                'database_connection' => 'OK',
+                'products_count' => $productCount,
+                'users_count' => $userCount,
+                'migrations_count' => $migrations,
+                'timestamp' => now()->toISOString()
+            ]
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Erreur de base de données',
+            'error' => $e->getMessage(),
+            'timestamp' => now()->toISOString()
+        ], 500);
+    }
+});
+
 // Routes protégées (avec authentification Passport)
 Route::middleware('auth:api')->group(function () {
     Route::prefix('auth')->group(function () {
